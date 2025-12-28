@@ -5,28 +5,37 @@ import folium
 from streamlit_folium import st_folium
 
 # 1. 页面配置
-st.set_page_config(page_title="GeoNames GIS 控制台", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="GeoNames GIS 控制台", layout="wide")
 
-# --- 2. 强制固定侧边栏的 CSS ---
+# --- 2. 核心 CSS：自定义浮动把手与布局优化 ---
 st.markdown("""
     <style>
-    /* 强制显示侧边栏，移除折叠按钮 */
-    [data-testid="sidebar-button"] {
-        display: none !important;
-    }
-    section[data-testid="stSidebar"] {
-        width: 350px !important;
-        background-color: #111111 !important;
-        position: fixed !important;
-        margin-left: 0 !important;
-    }
-    
     /* 移除主区域所有边距 */
     .block-container {
         padding: 0rem !important;
         max-width: 100% !important;
     }
     header, footer {visibility: hidden;}
+
+    /* 强制显示并自定义 Streamlit 原生的侧边栏按钮（把手） */
+    /* 我们给它一个明显的背景色和阴影，确保它永远浮在地图最上层 */
+    button[data-testid="sidebar-button"] {
+        background-color: #ff4b4b !important; /* 醒目的红色把手 */
+        color: white !important;
+        border-radius: 0 5px 5px 0 !important;
+        width: 40px !important;
+        height: 40px !important;
+        left: 0px !important;
+        top: 10px !important;
+        z-index: 999999 !important; /* 确保在地图之上 */
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.5) !important;
+    }
+    
+    /* 侧边栏样式 */
+    section[data-testid="stSidebar"] {
+        background-color: #111111 !important;
+        width: 350px !important;
+    }
 
     /* 结果列表按钮样式：表格态 */
     .stButton > button {
@@ -42,11 +51,11 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. 侧边栏：永久显示的检索面板 ---
+# --- 3. 侧边栏：检索面板 ---
 with st.sidebar:
     st.title("🌍 检索控制台")
     
-    # 精简版账户设置
+    # 账户设置
     with st.expander("👤 账户设置", expanded=False):
         try:
             default_user = st.secrets["GEONAMES_USER"]
@@ -58,9 +67,9 @@ with st.sidebar:
     place_name = st.text_input("输入地名 (拼音/英文)", "zhengzhou")
     
     col1, col2 = st.columns(2)
-    with col1:
+    with c1 := col1.container():
         search_btn = st.button("开始查询", use_container_width=True)
-    with col2:
+    with c2 := col2.container():
         if 'search_results' in st.session_state and st.session_state.search_results:
             csv = pd.DataFrame(st.session_state.search_results).to_csv(index=False).encode('utf-8')
             st.download_button("导出 CSV", data=csv, file_name=f"{place_name}.csv", use_container_width=True)
@@ -86,7 +95,7 @@ if search_btn and gn_user:
             ]
             st.session_state.map_center = [st.session_state.search_results[0]['Lat'], st.session_state.search_results[0]['Lon']]
             st.session_state.map_zoom = 11
-            st.rerun() # 强制更新界面
+            st.rerun()
     except:
         st.sidebar.error("API 调用失败")
 
@@ -127,6 +136,7 @@ folium.TileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Ima
 for res in st.session_state.search_results:
     folium.Marker([res['Lat'], res['Lon']], tooltip=res['Name']).add_to(m)
 
+# 控件置于左下角，避免遮挡左上角的把手
 folium.LayerControl(position='bottomleft').add_to(m)
 
 # 满屏渲染
